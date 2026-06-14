@@ -1,0 +1,9 @@
+{
+  "name": "Listening Note Trainer",
+  "short_name": "Note Trainer",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#2563eb",
+  "description": "Offline listening comprehension, dictation, vocabulary, and note-taking practice."
+}
