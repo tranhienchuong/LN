@@ -460,6 +460,57 @@ label span {
   display: none;
 }
 
+.timestamp-editor {
+  display: grid;
+  gap: 0.8rem;
+  padding: 1rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: #f8fafc;
+}
+
+.timestamp-list {
+  display: grid;
+  gap: 0.65rem;
+  max-height: 380px;
+  overflow: auto;
+  padding-right: 0.2rem;
+}
+
+.timestamp-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 210px;
+  gap: 0.8rem;
+  align-items: start;
+  padding: 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: #fff;
+}
+
+.timestamp-row strong {
+  display: inline-grid;
+  width: 28px;
+  height: 28px;
+  margin-bottom: 0.35rem;
+  place-items: center;
+  border-radius: 999px;
+  color: #075985;
+  background: #e0f2fe;
+}
+
+.timestamp-row p {
+  margin-bottom: 0;
+  color: #3b4658;
+  line-height: 1.45;
+}
+
+.time-inputs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.55rem;
+}
+
 .form-footer {
   display: flex;
   justify-content: flex-end;
@@ -569,6 +620,19 @@ label span {
   padding: 0;
 }
 
+.progress-track {
+  height: 10px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e4e8f0;
+}
+
+.progress-track span {
+  display: block;
+  height: 100%;
+  background: #2563eb;
+}
+
 .transcript-panel {
   display: grid;
   gap: 1rem;
@@ -636,6 +700,35 @@ label span {
 .dictation-card {
   display: grid;
   gap: 0.75rem;
+}
+
+.sentence-media {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.segment-toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.9rem;
+  align-items: center;
+  padding: 0.85rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: #f8fafc;
+}
+
+.segment-toolbar p {
+  margin-bottom: 0.25rem;
+}
+
+.segment-time {
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 750;
 }
 
 .comparison-box {
@@ -841,7 +934,7 @@ label span {
 
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 0.9rem;
 }
 
@@ -883,6 +976,33 @@ label span {
   color: var(--muted);
   font-size: 0.9rem;
   overflow-wrap: anywhere;
+}
+
+.note-history-row {
+  display: grid;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.4fr);
+  gap: 0.9rem;
+  align-items: start;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.note-history-row:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.note-history-row span {
+  display: block;
+  margin-top: 0.18rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.note-history-row p {
+  margin-bottom: 0;
+  color: #3b4658;
+  line-height: 1.55;
 }
 
 .bar-track {
@@ -950,7 +1070,10 @@ label span {
   .vocab-fields,
   .note-template,
   .form-grid,
-  .exam-setup {
+  .exam-setup,
+  .timestamp-row,
+  .segment-toolbar,
+  .note-history-row {
     grid-template-columns: 1fr;
   }
 

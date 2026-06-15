@@ -10,8 +10,8 @@ import { PracticePlayer } from "./components/PracticePlayer";
 import { ProgressPage } from "./components/ProgressPage";
 import { TranscriptPanel } from "./components/TranscriptPanel";
 import { VocabularyPage } from "./components/VocabularyPage";
-import type { AppData, DictationResult, ExamAttempt, Lesson, VocabularyItem } from "./types";
-import { createId } from "./utils/text";
+import type { AppData, DictationResult, ExamAttempt, Lesson, NoteAttempt, VocabularyItem } from "./types";
+import { buildTranscriptSegments, createId } from "./utils/text";
 import { loadFromStorage, saveToStorage } from "./utils/storage";
 import "./styles.css";
 
@@ -45,6 +45,28 @@ function createVocabularyItem(word: string, lesson: Lesson): VocabularyItem {
   };
 }
 
+function normalizeLesson(lesson: Lesson): Lesson {
+  return {
+    ...lesson,
+    transcript: lesson.transcript ?? "",
+    segments: buildTranscriptSegments(lesson.transcript ?? "", lesson.segments ?? []),
+    vocabularyWords: lesson.vocabularyWords ?? [],
+    unknownWords: lesson.unknownWords ?? [],
+  };
+}
+
+function normalizeAppData(stored: AppData): AppData {
+  const fallback = createInitialData();
+  const partial = stored as Partial<AppData>;
+  return {
+    lessons: (partial.lessons?.length ? partial.lessons : fallback.lessons).map(normalizeLesson),
+    vocabulary: partial.vocabulary ?? fallback.vocabulary,
+    dictationResults: partial.dictationResults ?? [],
+    noteAttempts: partial.noteAttempts ?? [],
+    examAttempts: partial.examAttempts ?? [],
+  };
+}
+
 function App() {
   const [data, setData] = useState<AppData>(() => createInitialData());
   const [loaded, setLoaded] = useState(false);
@@ -56,8 +78,9 @@ function App() {
 
   useEffect(() => {
     loadFromStorage(createInitialData()).then((stored) => {
-      setData(stored);
-      setSelectedLessonId(stored.lessons[0]?.id ?? "");
+      const normalized = normalizeAppData(stored);
+      setData(normalized);
+      setSelectedLessonId(normalized.lessons[0]?.id ?? "");
       setLoaded(true);
     });
   }, []);
@@ -115,6 +138,7 @@ function App() {
       ...lesson,
       vocabularyWords,
       unknownWords: [...new Set(lesson.unknownWords.map(normalizeWord))],
+      segments: buildTranscriptSegments(lesson.transcript, lesson.segments),
     };
     setData((current) => ({
       ...current,
@@ -135,6 +159,7 @@ function App() {
       lessons: current.lessons.filter((item) => item.id !== lessonId),
       vocabulary: current.vocabulary.filter((item) => item.sourceLessonId !== lessonId),
       dictationResults: current.dictationResults.filter((result) => result.lessonId !== lessonId),
+      noteAttempts: current.noteAttempts.filter((attempt) => attempt.lessonId !== lessonId),
       examAttempts: current.examAttempts.filter((attempt) => attempt.lessonId !== lessonId),
     }));
   };
@@ -194,6 +219,13 @@ function App() {
     setData((current) => ({
       ...current,
       examAttempts: [...current.examAttempts, attempt],
+    }));
+  };
+
+  const saveNoteAttempt = (attempt: NoteAttempt) => {
+    setData((current) => ({
+      ...current,
+      noteAttempts: [...current.noteAttempts, attempt],
     }));
   };
 
@@ -294,6 +326,7 @@ function App() {
             lesson={selectedLesson}
             onAddVocabulary={addVocabularyFromLesson}
             onToggleUnknownWord={toggleUnknownWord}
+            onSaveAttempt={saveNoteAttempt}
           />
         )}
 

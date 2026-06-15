@@ -122,7 +122,9 @@ export function ExamMode({ lesson, onSaveAttempt }: ExamModeProps) {
               min={1}
               max={60}
               value={timeLimitMinutes}
-              onChange={(event) => setTimeLimitMinutes(Number(event.target.value))}
+              onChange={(event) =>
+                setTimeLimitMinutes(Math.max(1, Math.min(60, Number(event.target.value) || 1)))
+              }
             />
           </label>
         </div>
@@ -151,7 +153,9 @@ export function ExamMode({ lesson, onSaveAttempt }: ExamModeProps) {
             lesson={lesson}
             listenLimit={listens}
             listensUsed={listenCount}
-            onListenComplete={() => setListenCount((current) => Math.min(listens, current + 1))}
+            allowSkip={false}
+            allowSeeking={false}
+            onListenStart={() => setListenCount((current) => Math.min(listens, current + 1))}
           />
 
           <label>

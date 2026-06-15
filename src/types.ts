@@ -7,12 +7,20 @@ export interface MediaAsset {
   dataUrl: string;
 }
 
+export interface TranscriptSegment {
+  id: string;
+  text: string;
+  startTime?: number;
+  endTime?: number;
+}
+
 export interface Lesson {
   id: string;
   title: string;
   topic: string;
   media?: MediaAsset;
   transcript: string;
+  segments: TranscriptSegment[];
   vocabularyWords: string[];
   unknownWords: string[];
   createdAt: string;
@@ -56,6 +64,8 @@ export interface DictationResult {
   lessonTitle: string;
   sentenceIndex: number;
   sentencePreview: string;
+  startTime?: number;
+  endTime?: number;
   accuracy: number;
   createdAt: string;
 }
@@ -80,6 +90,15 @@ export interface ExamAttempt {
   createdAt: string;
 }
 
+export interface NoteAttempt {
+  id: string;
+  lessonId: string;
+  lessonTitle: string;
+  templateNotes: Record<string, string>;
+  freeNotes: string;
+  createdAt: string;
+}
+
 export interface Keyword {
   term: string;
   count: number;
@@ -90,5 +109,6 @@ export interface AppData {
   lessons: Lesson[];
   vocabulary: VocabularyItem[];
   dictationResults: DictationResult[];
+  noteAttempts: NoteAttempt[];
   examAttempts: ExamAttempt[];
 }

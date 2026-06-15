@@ -6,6 +6,9 @@ interface PracticePlayerProps {
   lesson: Lesson;
   listenLimit?: 1 | 2;
   listensUsed?: number;
+  allowSkip?: boolean;
+  allowSeeking?: boolean;
+  onListenStart?: () => void;
   onListenComplete?: () => void;
 }
 
@@ -24,6 +27,9 @@ export function PracticePlayer({
   lesson,
   listenLimit,
   listensUsed = 0,
+  allowSkip = true,
+  allowSeeking = true,
+  onListenStart,
   onListenComplete,
 }: PracticePlayerProps) {
   const mediaRef = useRef<HTMLMediaElement | null>(null);
@@ -32,6 +38,7 @@ export function PracticePlayer({
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const reachedListenLimit = listenLimit ? listensUsed >= listenLimit : false;
+  const playDisabled = reachedListenLimit && !isPlaying;
 
   useEffect(() => {
     setIsPlaying(false);
@@ -49,10 +56,11 @@ export function PracticePlayer({
 
   const playPause = async () => {
     const element = mediaRef.current;
-    if (!element || reachedListenLimit) return;
+    if (!element || playDisabled) return;
     if (element.paused) {
       await element.play();
       setIsPlaying(true);
+      onListenStart?.();
     } else {
       element.pause();
       setIsPlaying(false);
@@ -140,22 +148,28 @@ export function PracticePlayer({
       )}
 
       <div className="player-controls">
-        <button className="control-button" onClick={() => shiftTime(-10)} disabled={reachedListenLimit}>
-          <Rewind size={17} />
-          10s
-        </button>
-        <button className="control-button" onClick={() => shiftTime(-5)} disabled={reachedListenLimit}>
-          <Rewind size={17} />
-          5s
-        </button>
-        <button className="primary-button round" onClick={playPause} disabled={reachedListenLimit}>
+        {allowSkip && (
+          <>
+            <button className="control-button" onClick={() => shiftTime(-10)} disabled={reachedListenLimit}>
+              <Rewind size={17} />
+              10s
+            </button>
+            <button className="control-button" onClick={() => shiftTime(-5)} disabled={reachedListenLimit}>
+              <Rewind size={17} />
+              5s
+            </button>
+          </>
+        )}
+        <button className="primary-button round" onClick={playPause} disabled={playDisabled}>
           {isPlaying ? <Pause size={18} /> : <Play size={18} />}
           {isPlaying ? "Pause" : "Play"}
         </button>
-        <button className="control-button" onClick={() => shiftTime(5)} disabled={reachedListenLimit}>
-          <FastForward size={17} />
-          5s
-        </button>
+        {allowSkip && (
+          <button className="control-button" onClick={() => shiftTime(5)} disabled={reachedListenLimit}>
+            <FastForward size={17} />
+            5s
+          </button>
+        )}
         <div className="speed-group" aria-label="Playback speed">
           {SPEEDS.map((rate) => (
             <button
@@ -172,19 +186,27 @@ export function PracticePlayer({
 
       <div className="timeline-row">
         <span>{formatTime(currentTime)}</span>
-        <input
-          aria-label="Seek media"
-          type="range"
-          min={0}
-          max={duration || 0}
-          value={Math.min(currentTime, duration || 0)}
-          onChange={(event) => handleSeek(event.target.value)}
-          disabled={reachedListenLimit}
-        />
+        {allowSeeking ? (
+          <input
+            aria-label="Seek media"
+            type="range"
+            min={0}
+            max={duration || 0}
+            value={Math.min(currentTime, duration || 0)}
+            onChange={(event) => handleSeek(event.target.value)}
+            disabled={reachedListenLimit}
+          />
+        ) : (
+          <div className="progress-track" aria-label="Playback progress">
+            <span style={{ width: `${duration ? Math.min(100, (currentTime / duration) * 100) : 0}%` }} />
+          </div>
+        )}
         <span>{formatTime(duration)}</span>
       </div>
 
-      {reachedListenLimit && <p className="helper-text">Listen limit reached for this exam attempt.</p>}
+      {reachedListenLimit && !isPlaying && (
+        <p className="helper-text">Listen limit reached for this exam attempt.</p>
+      )}
     </section>
   );
 }

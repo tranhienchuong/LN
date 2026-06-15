@@ -1,4 +1,4 @@
-import type { ComparedToken, DictationComparison, Keyword } from "../types";
+import type { ComparedToken, DictationComparison, Keyword, TranscriptSegment } from "../types";
 
 const STOP_WORDS = new Set([
   "a",
@@ -103,6 +103,30 @@ export function splitTranscriptIntoSentences(transcript: string): string[] {
     .split(/(?<=[.!?])\s+(?=[A-Z0-9"'])/g)
     .map((sentence) => sentence.trim())
     .filter(Boolean);
+}
+
+export function buildTranscriptSegments(
+  transcript: string,
+  existingSegments: TranscriptSegment[] = [],
+): TranscriptSegment[] {
+  const sentences = splitTranscriptIntoSentences(transcript);
+  return sentences.map((sentence, index) => {
+    const existing = existingSegments[index];
+    return {
+      id: existing?.id ?? `segment-${index}`,
+      text: sentence,
+      startTime: Number.isFinite(existing?.startTime) ? existing?.startTime : undefined,
+      endTime: Number.isFinite(existing?.endTime) ? existing?.endTime : undefined,
+    };
+  });
+}
+
+export function hasSegmentTiming(segment?: TranscriptSegment) {
+  return (
+    typeof segment?.startTime === "number" &&
+    typeof segment?.endTime === "number" &&
+    segment.endTime > segment.startTime
+  );
 }
 
 export function compareDictationText(expected: string, actual: string): DictationComparison {

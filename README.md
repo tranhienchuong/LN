@@ -17,11 +17,11 @@ Open the local URL shown in the terminal, usually `http://localhost:5173`.
 2. Open the lesson in **Practice**.
 3. Use the player controls to play, pause, rewind 5 or 10 seconds, move forward 5 seconds, and change speed.
 4. Use **Transcript** practice to show or hide the transcript, highlight unknown words, and add words to vocabulary.
-5. Use **Dictation** to type one transcript sentence at a time and check accuracy.
-6. Use **Note-taking** to write structured notes, then compare with the transcript and extracted keywords after listening.
-7. Use **Exam** mode to hide the transcript, set one or two listens, choose a time limit, write notes, and save a self-check attempt.
+5. Add optional sentence timestamps in the lesson editor, then use **Dictation** to play or loop one timed transcript sentence at a time, type what you hear, and check accuracy.
+6. Use **Note-taking** to write structured notes, then compare with the transcript and extracted keywords after listening. Note attempts are saved locally.
+7. Use **Exam** mode to hide the transcript, set one or two listens, choose a time limit, write notes, and save a self-check attempt. Exam playback removes seeking and skip controls.
 8. Use **Vocabulary** to edit meanings, examples, pronunciation notes, status, and review words.
-9. Use **Progress** to review practice counts, dictation accuracy, vocabulary totals, exam attempts, and weak areas.
+9. Use **Progress** to review practice counts, dictation accuracy, recent note attempts, vocabulary totals, exam attempts, and weak areas.
 
 ## Local and offline behavior
 

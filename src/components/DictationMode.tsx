@@ -1,7 +1,13 @@
-import { useMemo, useState } from "react";
-import { CheckCircle2, ChevronLeft, ChevronRight } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { CheckCircle2, ChevronLeft, ChevronRight, Play, Repeat2, Square } from "lucide-react";
 import type { DictationComparison, DictationResult, Lesson } from "../types";
-import { compactPreview, compareDictationText, createId, splitTranscriptIntoSentences } from "../utils/text";
+import {
+  buildTranscriptSegments,
+  compactPreview,
+  compareDictationText,
+  createId,
+  hasSegmentTiming,
+} from "../utils/text";
 
 interface DictationModeProps {
   lesson: Lesson;
@@ -9,12 +15,28 @@ interface DictationModeProps {
 }
 
 export function DictationMode({ lesson, onSaveResult }: DictationModeProps) {
-  const sentences = useMemo(() => splitTranscriptIntoSentences(lesson.transcript), [lesson.transcript]);
+  const segments = useMemo(
+    () => buildTranscriptSegments(lesson.transcript, lesson.segments),
+    [lesson.segments, lesson.transcript],
+  );
+  const mediaRef = useRef<HTMLMediaElement | null>(null);
   const [sentenceIndex, setSentenceIndex] = useState(0);
   const [answer, setAnswer] = useState("");
   const [comparison, setComparison] = useState<DictationComparison | null>(null);
+  const [isSegmentPlaying, setIsSegmentPlaying] = useState(false);
+  const [isLooping, setIsLooping] = useState(false);
 
-  const sentence = sentences[sentenceIndex] ?? "";
+  const segment = segments[sentenceIndex];
+  const sentence = segment?.text ?? "";
+  const canPlaySegment = Boolean(lesson.media && hasSegmentTiming(segment));
+
+  useEffect(() => {
+    const element = mediaRef.current;
+    if (!element) return;
+    element.pause();
+    setIsSegmentPlaying(false);
+    setIsLooping(false);
+  }, [lesson.id, sentenceIndex]);
 
   const moveTo = (nextIndex: number) => {
     setSentenceIndex(nextIndex);
@@ -31,12 +53,46 @@ export function DictationMode({ lesson, onSaveResult }: DictationModeProps) {
       lessonTitle: lesson.title,
       sentenceIndex,
       sentencePreview: compactPreview(sentence),
+      startTime: segment?.startTime,
+      endTime: segment?.endTime,
       accuracy: result.accuracy,
       createdAt: new Date().toISOString(),
     });
   };
 
-  if (!sentences.length) {
+  const playSegment = async (loop: boolean) => {
+    const element = mediaRef.current;
+    if (!element || !canPlaySegment || !segment) return;
+    setIsLooping(loop);
+    element.currentTime = segment.startTime ?? 0;
+    await element.play();
+    setIsSegmentPlaying(true);
+  };
+
+  const stopSegment = () => {
+    const element = mediaRef.current;
+    if (!element) return;
+    element.pause();
+    setIsSegmentPlaying(false);
+    setIsLooping(false);
+  };
+
+  const handleSegmentTimeUpdate = () => {
+    const element = mediaRef.current;
+    if (!element || !segment || !hasSegmentTiming(segment)) return;
+    if (element.currentTime < (segment.endTime ?? 0)) return;
+
+    if (isLooping) {
+      element.currentTime = segment.startTime ?? 0;
+      void element.play();
+      return;
+    }
+
+    element.pause();
+    setIsSegmentPlaying(false);
+  };
+
+  if (!segments.length) {
     return (
       <section className="surface mode-panel">
         <h2>Dictation mode</h2>
@@ -50,13 +106,74 @@ export function DictationMode({ lesson, onSaveResult }: DictationModeProps) {
       <div className="section-heading">
         <div>
           <p className="eyebrow">Dictation</p>
-          <h2>Sentence {sentenceIndex + 1} of {sentences.length}</h2>
+          <h2>Sentence {sentenceIndex + 1} of {segments.length}</h2>
         </div>
         {comparison && <span className="score-badge">{comparison.accuracy}% accuracy</span>}
       </div>
 
+      {lesson.media && (
+        lesson.media.kind === "video" ? (
+          <video
+            className="sentence-media"
+            ref={(node) => {
+              mediaRef.current = node;
+            }}
+            src={lesson.media.dataUrl}
+            onTimeUpdate={handleSegmentTimeUpdate}
+            onEnded={stopSegment}
+          />
+        ) : (
+          <audio
+            className="sentence-media"
+            ref={(node) => {
+              mediaRef.current = node;
+            }}
+            src={lesson.media.dataUrl}
+            onTimeUpdate={handleSegmentTimeUpdate}
+            onEnded={stopSegment}
+          />
+        )
+      )}
+
       <div className="dictation-card">
-        <p className="muted">Listen with the player, then type what you hear.</p>
+        <div className="segment-toolbar">
+          <div>
+            <p className="muted">Listen with the player, or play this timed sentence if timestamps are set.</p>
+            {hasSegmentTiming(segment) ? (
+              <span className="segment-time">
+                {segment?.startTime?.toFixed(1)}s to {segment?.endTime?.toFixed(1)}s
+              </span>
+            ) : (
+              <span className="segment-time">No timestamp set for this sentence.</span>
+            )}
+          </div>
+          <div className="inline-actions">
+            <button
+              className="secondary-button"
+              onClick={() => playSegment(false)}
+              disabled={!canPlaySegment}
+              type="button"
+            >
+              <Play size={17} />
+              Play this sentence
+            </button>
+            <button
+              className={isLooping ? "primary-button" : "secondary-button"}
+              onClick={() => (isLooping ? stopSegment() : playSegment(true))}
+              disabled={!canPlaySegment}
+              type="button"
+            >
+              <Repeat2 size={17} />
+              Loop this sentence
+            </button>
+            {isSegmentPlaying && (
+              <button className="ghost-button danger" onClick={stopSegment} type="button">
+                <Square size={16} />
+                Stop
+              </button>
+            )}
+          </div>
+        </div>
         <textarea
           value={answer}
           onChange={(event) => setAnswer(event.target.value)}
@@ -99,7 +216,7 @@ export function DictationMode({ lesson, onSaveResult }: DictationModeProps) {
         </button>
         <button
           className="secondary-button"
-          disabled={sentenceIndex === sentences.length - 1}
+          disabled={sentenceIndex === segments.length - 1}
           onClick={() => moveTo(sentenceIndex + 1)}
         >
           Next

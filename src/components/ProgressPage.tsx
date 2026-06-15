@@ -1,5 +1,6 @@
-import { BarChart3, BookOpen, ClipboardCheck, Headphones, ListChecks } from "lucide-react";
+import { BarChart3, BookOpen, ClipboardCheck, FileText, Headphones, ListChecks } from "lucide-react";
 import type { AppData, ExamChecklistKey } from "../types";
+import { compactPreview } from "../utils/text";
 
 interface ProgressPageProps {
   data: AppData;
@@ -16,6 +17,7 @@ const checklistLabels: Record<ExamChecklistKey, string> = {
 export function ProgressPage({ data }: ProgressPageProps) {
   const practicedLessonIds = new Set([
     ...data.dictationResults.map((result) => result.lessonId),
+    ...data.noteAttempts.map((attempt) => attempt.lessonId),
     ...data.examAttempts.map((attempt) => attempt.lessonId),
   ]);
   const averageAccuracy = data.dictationResults.length
@@ -41,6 +43,15 @@ export function ProgressPage({ data }: ProgressPageProps) {
     },
   );
   const newWords = data.vocabulary.filter((item) => item.status !== "mastered").length;
+  const recentNotes = data.noteAttempts.slice(-5).reverse();
+
+  const summarizeNoteAttempt = (attempt: (typeof data.noteAttempts)[number]) => {
+    const templateText = Object.entries(attempt.templateNotes)
+      .filter(([, value]) => value.trim().length > 0)
+      .map(([key, value]) => `${key}: ${value}`)
+      .join(" ");
+    return compactPreview(`${templateText} ${attempt.freeNotes}`.trim() || "No note text saved.", 140);
+  };
 
   return (
     <section className="page-stack">
@@ -70,6 +81,11 @@ export function ProgressPage({ data }: ProgressPageProps) {
           <span>{data.examAttempts.length}</span>
           <p>Exam attempts</p>
         </article>
+        <article className="surface stat-card">
+          <FileText size={22} />
+          <span>{data.noteAttempts.length}</span>
+          <p>Note attempts</p>
+        </article>
       </div>
 
       <section className="surface">
@@ -96,6 +112,30 @@ export function ProgressPage({ data }: ProgressPageProps) {
           </div>
         ) : (
           <p className="muted">Dictation checks will appear here after practice.</p>
+        )}
+      </section>
+
+      <section className="surface">
+        <div className="section-heading">
+          <div>
+            <p className="eyebrow">Note-taking attempts</p>
+            <h2>Recent notes</h2>
+          </div>
+        </div>
+        {recentNotes.length ? (
+          <div className="history-list">
+            {recentNotes.map((attempt) => (
+              <div className="note-history-row" key={attempt.id}>
+                <div>
+                  <strong>{attempt.lessonTitle}</strong>
+                  <span>{new Date(attempt.createdAt).toLocaleString()}</span>
+                </div>
+                <p>{summarizeNoteAttempt(attempt)}</p>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="muted">Saved note-taking attempts will appear here after you compare notes.</p>
         )}
       </section>
 

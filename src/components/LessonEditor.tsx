@@ -1,7 +1,7 @@
 import { ChangeEvent, FormEvent, useEffect, useState } from "react";
-import { Save, Trash2, Upload, X } from "lucide-react";
-import type { Lesson, MediaAsset } from "../types";
-import { createId } from "../utils/text";
+import { Clock, Save, Trash2, Upload, X } from "lucide-react";
+import type { Lesson, MediaAsset, TranscriptSegment } from "../types";
+import { buildTranscriptSegments, createId } from "../utils/text";
 
 interface LessonEditorProps {
   lesson?: Lesson | null;
@@ -16,6 +16,7 @@ const emptyLesson = (): Lesson => {
     title: "",
     topic: "",
     transcript: "",
+    segments: [],
     vocabularyWords: [],
     unknownWords: [],
     createdAt: now,
@@ -30,7 +31,10 @@ export function LessonEditor({ lesson, onSave, onCancel }: LessonEditorProps) {
 
   useEffect(() => {
     const nextLesson = lesson ?? emptyLesson();
-    setDraft(nextLesson);
+    setDraft({
+      ...nextLesson,
+      segments: buildTranscriptSegments(nextLesson.transcript, nextLesson.segments ?? []),
+    });
     setVocabText(nextLesson.vocabularyWords.join("\n"));
     setFileStatus("");
   }, [lesson]);
@@ -38,6 +42,37 @@ export function LessonEditor({ lesson, onSave, onCancel }: LessonEditorProps) {
   const updateDraft = <K extends keyof Lesson>(key: K, value: Lesson[K]) => {
     setDraft((current) => ({ ...current, [key]: value }));
   };
+
+  const updateTranscript = (transcript: string) => {
+    setDraft((current) => ({
+      ...current,
+      transcript,
+      segments: buildTranscriptSegments(transcript, current.segments),
+    }));
+  };
+
+  const updateSegmentTime = (
+    segmentId: string,
+    key: "startTime" | "endTime",
+    value: string,
+  ) => {
+    const parsed = value === "" ? undefined : Math.max(0, Number(value));
+    setDraft((current) => ({
+      ...current,
+      segments: current.segments.map((segment) =>
+        segment.id === segmentId
+          ? { ...segment, [key]: Number.isFinite(parsed) ? parsed : undefined }
+          : segment,
+      ),
+    }));
+  };
+
+  const normalizeSegmentsForSave = (segments: TranscriptSegment[]) =>
+    buildTranscriptSegments(draft.transcript, segments).map((segment) => ({
+      ...segment,
+      startTime: Number.isFinite(segment.startTime) ? segment.startTime : undefined,
+      endTime: Number.isFinite(segment.endTime) ? segment.endTime : undefined,
+    }));
 
   const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -71,6 +106,7 @@ export function LessonEditor({ lesson, onSave, onCancel }: LessonEditorProps) {
         title: draft.title.trim(),
         topic: draft.topic.trim(),
         transcript: draft.transcript.trim(),
+        segments: normalizeSegmentsForSave(draft.segments),
         vocabularyWords,
         updatedAt: new Date().toISOString(),
       },
@@ -137,10 +173,57 @@ export function LessonEditor({ lesson, onSave, onCancel }: LessonEditorProps) {
           required
           className="large-textarea"
           value={draft.transcript}
-          onChange={(event) => updateDraft("transcript", event.target.value)}
+          onChange={(event) => updateTranscript(event.target.value)}
           placeholder="Paste the transcript here. It will be used for dictation, comparison, vocabulary, and keyword practice."
         />
       </label>
+
+      <section className="timestamp-editor">
+        <div className="section-heading">
+          <div>
+            <p className="eyebrow">Dictation timestamps</p>
+            <h3>Sentence start and end times</h3>
+          </div>
+          <Clock size={20} />
+        </div>
+        <p className="helper-text">
+          Times are optional. Add seconds from the media file to enable sentence playback and looping.
+        </p>
+        <div className="timestamp-list">
+          {draft.segments.map((segment, index) => (
+            <div className="timestamp-row" key={segment.id}>
+              <div>
+                <strong>{index + 1}</strong>
+                <p>{segment.text}</p>
+              </div>
+              <div className="time-inputs">
+                <label>
+                  <span>Start</span>
+                  <input
+                    type="number"
+                    min={0}
+                    step={0.1}
+                    value={segment.startTime ?? ""}
+                    onChange={(event) => updateSegmentTime(segment.id, "startTime", event.target.value)}
+                    placeholder="0.0"
+                  />
+                </label>
+                <label>
+                  <span>End</span>
+                  <input
+                    type="number"
+                    min={0}
+                    step={0.1}
+                    value={segment.endTime ?? ""}
+                    onChange={(event) => updateSegmentTime(segment.id, "endTime", event.target.value)}
+                    placeholder="4.5"
+                  />
+                </label>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
 
       <label>
         <span>Vocabulary list</span>
