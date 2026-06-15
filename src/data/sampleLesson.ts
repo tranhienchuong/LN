@@ -1,4 +1,5 @@
 import type { AppData, Lesson } from "../types";
+import { emptyModelNotes } from "../utils/ai";
 import { buildTranscriptSegments } from "../utils/text";
 
 const now = new Date().toISOString();
@@ -12,6 +13,9 @@ export const sampleLesson: Lesson = {
   vocabularyWords: ["sustainability", "leftovers", "disposal", "reusable", "deposit"],
   unknownWords: [],
   segments: [],
+  modelNotes: emptyModelNotes,
+  questions: [],
+  aiVocabulary: [],
   createdAt: now,
   updatedAt: now,
 };

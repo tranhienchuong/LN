@@ -10,7 +10,24 @@ import { PracticePlayer } from "./components/PracticePlayer";
 import { ProgressPage } from "./components/ProgressPage";
 import { TranscriptPanel } from "./components/TranscriptPanel";
 import { VocabularyPage } from "./components/VocabularyPage";
-import type { AppData, DictationResult, ExamAttempt, Lesson, NoteAttempt, VocabularyItem } from "./types";
+import type {
+  AIQuestion,
+  AIVocabularyItem,
+  AppData,
+  DictationResult,
+  ExamAttempt,
+  Lesson,
+  NoteAttempt,
+  VocabularyItem,
+} from "./types";
+import {
+  type AISettings,
+  emptyModelNotes,
+  loadAISettings,
+  normalizeQuestionType,
+  normalizeVocabularyItem,
+  saveAISettings,
+} from "./utils/ai";
 import { buildTranscriptSegments, createId } from "./utils/text";
 import { loadFromStorage, saveToStorage } from "./utils/storage";
 import "./styles.css";
@@ -27,14 +44,18 @@ const navItems: Array<{ id: Tab; label: string; icon: typeof Library }> = [
 
 const normalizeWord = (word: string) => word.trim().toLowerCase();
 
-function createVocabularyItem(word: string, lesson: Lesson): VocabularyItem {
+function createVocabularyItem(
+  word: string,
+  lesson: Lesson,
+  details?: Partial<Pick<VocabularyItem, "meaning" | "exampleSentence" | "pronunciationNote">>,
+): VocabularyItem {
   const now = new Date().toISOString();
   return {
     id: createId("vocab"),
     word: word.trim(),
-    meaning: "",
-    exampleSentence: "",
-    pronunciationNote: "",
+    meaning: details?.meaning ?? "",
+    exampleSentence: details?.exampleSentence ?? "",
+    pronunciationNote: details?.pronunciationNote ?? "",
     sourceLessonId: lesson.id,
     sourceLessonTitle: lesson.title,
     status: "new",
@@ -46,10 +67,28 @@ function createVocabularyItem(word: string, lesson: Lesson): VocabularyItem {
 }
 
 function normalizeLesson(lesson: Lesson): Lesson {
+  const legacyLesson = lesson as Lesson & {
+    shorthandNotes?: string;
+    aiQuestions?: AIQuestion[];
+  };
+  const modelNotes = {
+    ...emptyModelNotes,
+    ...(lesson.modelNotes ?? {}),
+    shorthandNotes:
+      lesson.modelNotes?.shorthandNotes ?? legacyLesson.shorthandNotes ?? emptyModelNotes.shorthandNotes,
+  };
+
   return {
     ...lesson,
     transcript: lesson.transcript ?? "",
     segments: buildTranscriptSegments(lesson.transcript ?? "", lesson.segments ?? []),
+    modelNotes,
+    questions: (lesson.questions ?? legacyLesson.aiQuestions ?? []).map((question) => ({
+      ...question,
+      questionType: normalizeQuestionType(question.questionType),
+      explanation: question.explanation ?? "",
+    })),
+    aiVocabulary: (lesson.aiVocabulary ?? []).map(normalizeVocabularyItem),
     vocabularyWords: lesson.vocabularyWords ?? [],
     unknownWords: lesson.unknownWords ?? [],
   };
@@ -75,6 +114,7 @@ function App() {
   const [selectedLessonId, setSelectedLessonId] = useState("lesson-demo-campus-sustainability");
   const [editorLesson, setEditorLesson] = useState<Lesson | null | undefined>(undefined);
   const [transcriptHidden, setTranscriptHidden] = useState(true);
+  const [aiSettings, setAISettings] = useState<AISettings>(() => loadAISettings());
 
   useEffect(() => {
     loadFromStorage(createInitialData()).then((stored) => {
@@ -91,6 +131,11 @@ function App() {
     }
   }, [data, loaded]);
 
+  const updateAISettings = (settings: AISettings) => {
+    setAISettings(settings);
+    saveAISettings(settings);
+  };
+
   useEffect(() => {
     if (!data.lessons.length) {
       setSelectedLessonId("");
@@ -106,25 +151,38 @@ function App() {
     [data.lessons, selectedLessonId],
   );
 
-  const upsertLessonVocabulary = (lesson: Lesson, words: string[]) => {
+  const upsertLessonVocabulary = (lesson: Lesson, words: string[], aiVocabulary: AIVocabularyItem[]) => {
     setData((current) => {
       const existingKeys = new Set(
         current.vocabulary
           .filter((item) => item.sourceLessonId === lesson.id)
           .map((item) => normalizeWord(item.word)),
       );
+      const aiByWord = new Map(aiVocabulary.map((item) => [normalizeWord(item.word), item]));
       const newItems = words
         .map((word) => word.trim())
         .filter(Boolean)
         .filter((word) => !existingKeys.has(normalizeWord(word)))
-        .map((word) => createVocabularyItem(word, lesson));
+        .map((word) => {
+          const aiItem = aiByWord.get(normalizeWord(word));
+          return createVocabularyItem(word, lesson, {
+            meaning: aiItem?.meaning,
+            exampleSentence: aiItem?.exampleSentence,
+            pronunciationNote: aiItem?.pronunciationNote,
+          });
+        });
 
       return {
         ...current,
         vocabulary: [
           ...current.vocabulary.map((item) =>
             item.sourceLessonId === lesson.id
-              ? { ...item, sourceLessonTitle: lesson.title, updatedAt: new Date().toISOString() }
+              ? {
+                  ...item,
+                  ...(aiByWord.get(normalizeWord(item.word)) ?? {}),
+                  sourceLessonTitle: lesson.title,
+                  updatedAt: new Date().toISOString(),
+                }
               : item,
           ),
           ...newItems,
@@ -133,9 +191,29 @@ function App() {
     });
   };
 
-  const saveLesson = (lesson: Lesson, vocabularyWords: string[]) => {
+  const saveLesson = (lesson: Lesson) => {
+    const aiVocabulary = (lesson.aiVocabulary ?? [])
+      .map(normalizeVocabularyItem)
+      .filter((item) => item.word.trim());
+    const vocabularyWords = [
+      ...new Set([
+        ...(lesson.vocabularyWords ?? []),
+        ...aiVocabulary.map((item) => normalizeWord(item.word)),
+      ]),
+    ];
     const cleanLesson = {
       ...lesson,
+      modelNotes: { ...emptyModelNotes, ...(lesson.modelNotes ?? {}) },
+      questions: (lesson.questions ?? [])
+        .map((question) => ({
+          ...question,
+          questionType: normalizeQuestionType(question.questionType),
+          questionText: question.questionText.trim(),
+          answerKey: question.answerKey.trim(),
+          explanation: question.explanation?.trim() ?? "",
+        }))
+        .filter((question) => question.questionText || question.answerKey),
+      aiVocabulary,
       vocabularyWords,
       unknownWords: [...new Set(lesson.unknownWords.map(normalizeWord))],
       segments: buildTranscriptSegments(lesson.transcript, lesson.segments),
@@ -146,7 +224,7 @@ function App() {
         ? current.lessons.map((item) => (item.id === cleanLesson.id ? cleanLesson : item))
         : [cleanLesson, ...current.lessons],
     }));
-    upsertLessonVocabulary(cleanLesson, vocabularyWords);
+    upsertLessonVocabulary(cleanLesson, vocabularyWords, aiVocabulary);
     setSelectedLessonId(cleanLesson.id);
     setEditorLesson(undefined);
   };
@@ -324,13 +402,16 @@ function App() {
         {practiceMode === "notes" && (
           <NoteTakingMode
             lesson={selectedLesson}
+            aiSettings={aiSettings}
             onAddVocabulary={addVocabularyFromLesson}
             onToggleUnknownWord={toggleUnknownWord}
             onSaveAttempt={saveNoteAttempt}
           />
         )}
 
-        {practiceMode === "exam" && <ExamMode lesson={selectedLesson} onSaveAttempt={saveExamAttempt} />}
+        {practiceMode === "exam" && (
+          <ExamMode lesson={selectedLesson} aiSettings={aiSettings} onSaveAttempt={saveExamAttempt} />
+        )}
       </section>
     );
   };
@@ -371,6 +452,8 @@ function App() {
             {editorLesson !== undefined && (
               <LessonEditor
                 lesson={editorLesson}
+                aiSettings={aiSettings}
+                onAISettingsChange={updateAISettings}
                 onSave={saveLesson}
                 onCancel={() => setEditorLesson(undefined)}
               />

@@ -1,11 +1,14 @@
 import { useMemo, useState } from "react";
 import { FileText, Plus } from "lucide-react";
 import type { Lesson, NoteAttempt } from "../types";
+import type { AISettings } from "../utils/ai";
 import { createId, extractKeywords } from "../utils/text";
+import { AIQuestionPractice } from "./AIQuestionPractice";
 import { TranscriptPanel } from "./TranscriptPanel";
 
 interface NoteTakingModeProps {
   lesson: Lesson;
+  aiSettings: AISettings;
   onAddVocabulary: (word: string) => void;
   onToggleUnknownWord: (word: string) => void;
   onSaveAttempt: (attempt: NoteAttempt) => void;
@@ -34,6 +37,7 @@ const quickSymbols = [
 
 export function NoteTakingMode({
   lesson,
+  aiSettings,
   onAddVocabulary,
   onToggleUnknownWord,
   onSaveAttempt,
@@ -51,6 +55,11 @@ export function NoteTakingMode({
   const insertSymbol = (symbol: string) => {
     setFreeNotes((current) => `${current}${current.endsWith(" ") || current.length === 0 ? "" : " "}${symbol} `);
   };
+
+  const combinedNotes = () =>
+    `${fields
+      .map((field) => `${field}: ${templateNotes[field] ?? ""}`)
+      .join("\n")}\n\nFree notes:\n${freeNotes}`;
 
   const saveAndCompare = () => {
     const normalizedTemplateNotes = fields.reduce<Record<string, string>>((notes, field) => {
@@ -149,6 +158,8 @@ export function NoteTakingMode({
             onAddVocabulary={onAddVocabulary}
             onToggleUnknownWord={onToggleUnknownWord}
           />
+
+          <AIQuestionPractice lesson={lesson} aiSettings={aiSettings} userNotes={combinedNotes()} />
 
           <button className="ghost-button" onClick={() => setShowComparison(false)}>
             <Plus size={16} />

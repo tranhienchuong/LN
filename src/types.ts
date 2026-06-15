@@ -14,6 +14,52 @@ export interface TranscriptSegment {
   endTime?: number;
 }
 
+export interface StructuredModelNotes {
+  topic: string;
+  mainIdea: string;
+  details: string;
+  examples: string;
+  numbersNames: string;
+  causeEffect: string;
+  contrast: string;
+  conclusion: string;
+  shorthandNotes: string;
+}
+
+export type AIQuestionType =
+  | "main_idea"
+  | "detail"
+  | "example"
+  | "number_name"
+  | "cause_effect"
+  | "contrast"
+  | "inference"
+  | "conclusion";
+
+export interface AIQuestion {
+  id: string;
+  questionText: string;
+  questionType: AIQuestionType;
+  answerKey: string;
+  explanation?: string;
+}
+
+export interface AIFeedback {
+  overallFeedback: string;
+  missingMainIdeas: string[];
+  missingDetailsExamplesNumbers: string[];
+  weakQuestionTypes: AIQuestionType[];
+  noteTakingAdvice: string;
+  nextPracticeFocus: string[];
+}
+
+export interface AIVocabularyItem {
+  word: string;
+  meaning: string;
+  exampleSentence: string;
+  pronunciationNote?: string;
+}
+
 export interface Lesson {
   id: string;
   title: string;
@@ -21,6 +67,9 @@ export interface Lesson {
   media?: MediaAsset;
   transcript: string;
   segments: TranscriptSegment[];
+  modelNotes?: StructuredModelNotes;
+  questions?: AIQuestion[];
+  aiVocabulary?: AIVocabularyItem[];
   vocabularyWords: string[];
   unknownWords: string[];
   createdAt: string;

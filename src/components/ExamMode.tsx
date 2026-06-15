@@ -1,12 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { BadgeCheck, Timer } from "lucide-react";
 import type { ExamAttempt, ExamChecklist, ExamChecklistKey, Lesson } from "../types";
+import type { AISettings } from "../utils/ai";
 import { createId, extractKeywords } from "../utils/text";
+import { AIQuestionPractice } from "./AIQuestionPractice";
 import { PracticePlayer } from "./PracticePlayer";
 import { TranscriptPanel } from "./TranscriptPanel";
 
 interface ExamModeProps {
   lesson: Lesson;
+  aiSettings: AISettings;
   onSaveAttempt: (attempt: ExamAttempt) => void;
 }
 
@@ -36,7 +39,7 @@ function formatTimer(seconds: number) {
   return `${mins}:${secs}`;
 }
 
-export function ExamMode({ lesson, onSaveAttempt }: ExamModeProps) {
+export function ExamMode({ lesson, aiSettings, onSaveAttempt }: ExamModeProps) {
   const [listens, setListens] = useState<1 | 2>(1);
   const [timeLimitMinutes, setTimeLimitMinutes] = useState(8);
   const [started, setStarted] = useState(false);
@@ -232,6 +235,8 @@ export function ExamMode({ lesson, onSaveAttempt }: ExamModeProps) {
       </section>
 
       <TranscriptPanel lesson={lesson} hidden={false} allowActions={false} />
+
+      <AIQuestionPractice lesson={lesson} aiSettings={aiSettings} userNotes={notes} />
     </section>
   );
 }
